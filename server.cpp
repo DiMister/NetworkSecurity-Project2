@@ -16,6 +16,11 @@
 #include <unistd.h>
 #include "DiffeHellman.h"
 #include "net_utils.h"
+#include "SDES.h"
+#include <thread>
+#include <sstream>
+#include <iomanip>
+#include <atomic>
 using namespace std;
 
 // send_all, recv_line and recv_one are provided by net_utils.cpp
@@ -91,7 +96,9 @@ int main(int argc, char* argv[]) {
         std::istringstream iss(line.substr(6));
         iss >> p >> g;
     } catch (...) {}
+    std::cout << "Server: received parameters p=" << p << " g=" << g << "\n";
     DiffeHellman dh(p, g);
+
     
 
     // send ACK
@@ -111,11 +118,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     int A = std::stoi(line.substr(4));
+    std::cout << "Server: received public A=" << A << "\n";
 
     // compute B
     vector<int> primes = dh.loadPrimes("./primes.csv");
     int b = dh.pickRandomFrom(primes);
     int B = dh.calculatePublicKey(b);
+    std::cout << "Server: computed public B=" << B << "\n";
 
     // send PUB B
     if (!send_all(client_sock, std::string("PUB ") + std::to_string(B) + "\n") ) {
@@ -138,10 +147,63 @@ int main(int argc, char* argv[]) {
     int s_server = dh.calculateSharedSecret(A, b);
     if (s_server == s_client) {
         send_all(client_sock, std::string("OK\n"));
-        std::cout << "Server: shared secret verified\n";
+        std::cout << "Server: shared secret verified (s=" << s_server << ")\n";
     } else {
         send_all(client_sock, std::string("ERR\n"));
         std::cout << "Server: shared secret mismatch (client=" << s_client << " server=" << s_server << ")\n";
+    }
+
+    // Derive SDES 10-bit key from shared secret
+    int s = s_server;
+    uint16_t key10 = static_cast<uint16_t>(s % 1024);
+    bitset<10> sdes_key(key10);
+    SDES sdes(sdes_key);
+
+    auto hex_to_bytes = [](const std::string &hex) {
+        std::vector<unsigned char> out;
+        if (hex.size() % 2 != 0) return out;
+        for (size_t i = 0; i < hex.size(); i += 2) {
+            std::string byteStr = hex.substr(i, 2);
+            unsigned int byte;
+            std::stringstream ss;
+            ss << std::hex << byteStr;
+            ss >> byte;
+            out.push_back(static_cast<unsigned char>(byte));
+        }
+        return out;
+    };
+
+    auto bytes_to_hex = [](const std::vector<unsigned char>& bytes) {
+        std::ostringstream oss;
+        for (unsigned char b : bytes) {
+            oss << std::hex << std::setw(2) << std::setfill('0') << (int)b;
+        }
+        return oss.str();
+    };
+
+    // Receive loop: decrypt incoming MSG <hex> lines and print
+    while (true) {
+        std::string line = recv_line(client_sock);
+        if (line.empty()) break;
+        if (line.rfind("MSG ", 0) == 0) {
+            std::string hex = line.substr(4);
+            // Log the encrypted message received (hex)
+            std::cout << "Encrypted (hex) received: " << hex << std::endl;
+
+            auto bytes = hex_to_bytes(hex);
+            std::string plain;
+            plain.reserve(bytes.size());
+            for (unsigned char b : bytes) {
+                std::bitset<8> ct(b);
+                std::bitset<8> pt = sdes.decrypt(ct);
+                plain.push_back(static_cast<char>(pt.to_ulong()));
+            }
+            // Log the decrypted keyboard input
+            std::cout << "Decrypted keyboard input: '" << plain << "'" << std::endl;
+        } else if (line == "BYE") {
+            std::cout << "Client closed connection" << std::endl;
+            break;
+        }
     }
 
     // Cleanup
