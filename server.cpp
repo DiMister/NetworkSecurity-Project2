@@ -16,7 +16,6 @@
 #include <sstream>
 #include <iomanip>
 #include <atomic>
-using namespace std;
 
 int main(int argc, char* argv[]) {
     uint16_t port = 8421;
@@ -40,7 +39,7 @@ int main(int argc, char* argv[]) {
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if (bind(listen_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+    if (::bind(listen_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         std::perror("bind");
         close(listen_sock);
         return 1;
@@ -114,7 +113,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Server: received public A=" << A << "\n";
 
     // compute B
-    vector<int> primes = dh.loadPrimes("./primes.csv");
+    std::vector<int> primes = dh.loadPrimes("./primes.csv");
     int b = dh.pickRandomFrom(primes);
     int B = dh.calculatePublicKey(b);
     std::cout << "Server: computed public B=" << B << "\n";
@@ -149,7 +148,7 @@ int main(int argc, char* argv[]) {
     // Derive SDES 10-bit key from shared secret
     int s = s_server;
     uint16_t key10 = static_cast<uint16_t>(s % 1024);
-    bitset<10> sdes_key(key10);
+    std::bitset<10> sdes_key(key10);
     SDES sdes(sdes_key);
 
     auto hex_to_bytes = [](const std::string &hex) {

@@ -1,7 +1,7 @@
 # NetworkSecurity-Project2
 
 This project implements a Diffie-Hellman key exchange demonstration with client-server communication.
-### Compilation
+### Compilation wsl
 ```bash
 # Compile server
 g++ -o server server.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp FastModExp.cpp
@@ -9,11 +9,17 @@ g++ -o server server.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp F
 # Compile client  
 g++ -o client client.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp FastModExp.cpp
 ```
+### Compilation Mac
+```bash
+# Compile server
+clang++ -std=c++17 server.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp FastModExp.cpp -o server
+
+# Compile client  
+clang++ -std=c++17 client.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp FastModExp.cpp -o client
+```
+
 
 ### Running the Diffie-Hellman Demo
-
-#### Option 1: Start server and client in separate terminals
-
 **Terminal 1 - Start the server:**
 ```bash
 ./server [port]
@@ -26,18 +32,6 @@ g++ -o client client.cpp DiffeHellman.cpp net_utils.cpp SDESModes.cpp SDES.cpp F
 ./client [server_ip] [port]
 # Example: ./client 127.0.0.1 8421
 # Default: connects to localhost:8421
-```
-
-#### Option 2: Quick test with background server
-```bash
-# Start server in background
-./server &
-
-# Run client
-./client
-
-# Stop background server
-pkill server
 ```
 
    
