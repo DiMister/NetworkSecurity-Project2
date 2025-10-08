@@ -1,8 +1,3 @@
-// Simple TCP server in C++
-// Listens on all interfaces and accepts a single client.
-// It echoes back exactly the bytes it receives so the existing
-// `client.cpp` will print the server reply as: "Server Replies: <message>".
-
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -22,8 +17,6 @@
 #include <iomanip>
 #include <atomic>
 using namespace std;
-
-// send_all, recv_line and recv_one are provided by net_utils.cpp
 
 int main(int argc, char* argv[]) {
     uint16_t port = 8421;

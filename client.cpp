@@ -1,5 +1,3 @@
-// Diffie-Hellman client
-
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -17,8 +15,6 @@
 #include <iomanip>
 
 using namespace std;
-
-// using send_all and recv_line from net_utils.h
 
 int main(int argc, char* argv[]) {
     string server_ip = "127.0.0.1";
