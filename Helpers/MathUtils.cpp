@@ -1,17 +1,12 @@
-
-#include "DiffeHellman.h"
-#include "FastModExp.h"
+#include "MathUtils.h"
 #include <fstream>
 #include <string>
 #include <cctype>
 #include <random>
+#include <set>
 using namespace std;
 
-// Implementation of DiffeHellman
-DiffeHellman::DiffeHellman(int modulus, int generator)
-    : p(modulus), g(generator) {}
-
-vector<int> DiffeHellman::loadPrimes(const string &path) const {
+vector<int> MathUtils::loadPrimes(const string &path) const {
     vector<int> primes;
     ifstream in(path);
     if (!in) return primes;
@@ -33,7 +28,7 @@ vector<int> DiffeHellman::loadPrimes(const string &path) const {
     return primes;
 }
 
-int DiffeHellman::pickRandomFrom(const vector<int>& v) const {
+int MathUtils::pickRandomFrom(const vector<int>& v) const {
     if (v.empty()) return -1;
     static random_device rd;
     static mt19937 gen(rd());
@@ -41,13 +36,22 @@ int DiffeHellman::pickRandomFrom(const vector<int>& v) const {
     return v[dist(gen)];
 }
 
-int DiffeHellman::calculatePublicKey(int privateKey) const {
-    return FastModExp::powmod(g, privateKey, p);
+int MathUtils::findGenerator(int p) const {
+    for (int candidate = 2; candidate < p; candidate++) {
+        if (isGenerator(candidate, p)) {
+            return candidate;
+        }
+    }
+    return -1; // No generator found
 }
 
-int DiffeHellman::calculateSharedSecret(int otherPublicKey, int privateKey) const {
-    return FastModExp::powmod(otherPublicKey, privateKey, p);
+bool MathUtils::isGenerator(int g, int p) const {
+    set<int> seen;
+    int current = 1;
+    for (int i = 1; i < p; i++) {
+        current = (current * g) % p;
+        if (seen.count(current)) return false;  // Early cycle
+        seen.insert(current);
+    }
+    return seen.size() == p - 1;
 }
-
-int DiffeHellman::getModulus() const { return p; }
-int DiffeHellman::getGenerator() const { return g; }

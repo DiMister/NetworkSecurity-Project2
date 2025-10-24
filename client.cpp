@@ -8,9 +8,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <random>
-#include "DiffeHellman.h"
-#include "net_utils.h"
-#include "SDES.h"
+#include "./Helpers/DiffeHellman.h"
+#include "./Helpers/net_utils.h"
+#include "./Helpers/SDES.h"
 #include <sstream>
 #include <iomanip>
 
@@ -43,11 +43,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Connected to " << server_ip << ":" << port << "\n";
 
-    // Use small demo params; you can change or load from file
-    int p = 23;
-    int g = 5;
+    MathUtils mathUtils;
+    std::vector<int> primes = mathUtils.loadPrimes("./primes.csv");
+
+    int p = mathUtils.pickRandomFrom(primes);
+    int g = mathUtils.findGenerator(p);
     DiffeHellman dh(p, g);
-    std::vector<int> primes = dh.loadPrimes("./primes.csv");
     std::cout << "Client: using parameters p=" << p << " g=" << g << "\n";
 
     // Send parameters to server
@@ -58,7 +59,8 @@ int main(int argc, char* argv[]) {
     if (reply != "ACK") { std::cerr << "Expected ACK, got '" << reply << "'\n"; close(sock); return 1; }
 
     // Generate client's private and public
-    int a = dh.pickRandomFrom(primes);
+    int a = mathUtils.pickRandomFrom(primes);
+    std::cout << "Client: generated private a=" << a << "\n";
     int A = dh.calculatePublicKey(a);
     std::cout << "Client: generated public A=" << A << "\n";
 

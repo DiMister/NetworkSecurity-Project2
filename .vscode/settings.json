@@ -61,6 +61,8 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "stop_token": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "set": "cpp",
+        "xtree": "cpp"
     }
 }

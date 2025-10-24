@@ -9,9 +9,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include "DiffeHellman.h"
-#include "net_utils.h"
-#include "SDES.h"
+#include "./Helpers/DiffeHellman.h"
+#include "./Helpers/net_utils.h"
+#include "./Helpers/SDES.h"
 #include <thread>
 #include <sstream>
 #include <iomanip>
@@ -113,8 +113,10 @@ int main(int argc, char* argv[]) {
     std::cout << "Server: received public A=" << A << "\n";
 
     // compute B
-    std::vector<int> primes = dh.loadPrimes("./primes.csv");
-    int b = dh.pickRandomFrom(primes);
+    MathUtils mathUtils;
+    std::vector<int> primes = mathUtils.loadPrimes("./primes.csv");
+    int b = mathUtils.pickRandomFrom(primes);
+    std::cout << "Server: generated private b=" << b << "\n";
     int B = dh.calculatePublicKey(b);
     std::cout << "Server: computed public B=" << B << "\n";
 
