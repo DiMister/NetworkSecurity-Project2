@@ -10,6 +10,8 @@
 #include <random>
 #include "./Helpers/net_utils.h"
 #include "./Helpers/SDESModes.h"
+#include "./Helpers/MathUtils.h"
+#include "./Helpers/FastModExp.h"
 #include <sstream>
 #include <iomanip>
 #include <cstdint>
@@ -77,8 +79,27 @@ int main(int argc, char* argv[]) {
     std::string publine = "RSA_PUB " + std::to_string(n) + " " + std::to_string(e) + "\n";
     if (!send_all(sock, publine)) { perror("send"); close(sock); return 1; }
 
-    std::string ok = recv_line(sock);
-    if (ok == "OK") std::cout << "Client: server acknowledged shared secret\n";
+    // Receive encrypted shared secret from server: "ENC_SHARE <c>\n"
+    std::string enc_line = recv_line(sock);
+    if (enc_line.rfind("ENC_SHARE ", 0) != 0) {
+        std::cerr << "Expected ENC_SHARE from server, got '" << enc_line << "'\n";
+        close(sock);
+        return 1;
+    }
+    // Parse the numeric ciphertext after the prefix "ENC_SHARE ".
+    // Use std::stoul to convert directly from substring to unsigned long, then cast.
+    unsigned int ciph = 0u;
+    try {
+        ciph = static_cast<unsigned int>(std::stoul(enc_line.substr(10)));
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to parse ENC_SHARE value: " << e.what() << "\n";
+        close(sock);
+        return 1;
+    }
+
+    // Decrypt with client's private exponent d: shared = c^d mod n
+    unsigned int shared = FastModExp::powmod(ciph, d, n);
+    std::cout << "Client: decrypted shared secret = " << shared << std::endl;
 
     // Generate a random 8-bit IV for CBC mode
     std::random_device rd;
@@ -95,7 +116,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Derive 10-bit SDES key from shared secret (simple: take s mod 1024)
-    int s = s_client;
+    int s = static_cast<int>(shared);
     uint16_t key10 = static_cast<uint16_t>(s % 1024);
     std::bitset<10> sdes_key(key10);
     SDESModes sdes(sdes_key);
@@ -135,10 +156,14 @@ int main(int argc, char* argv[]) {
 
         std::vector<std::bitset<8>> plaintext_bits;
         for (char c : input) {
-            std::bitset<8> pt = sdes.charToBinary(c);
-            plaintext_bits.push_back(static_cast<unsigned char>(pt.to_ulong()));
+            std::bitset<8> pt(static_cast<unsigned char>(c));
+            plaintext_bits.push_back(pt);
         }
-        auto cipher_bytes = sdes.encrypt(plaintext_bits, EncryptionMode::CBC, cbc_iv);
+        auto cipher_bits = sdes.encrypt(plaintext_bits, EncryptionMode::CBC, cbc_iv);
+        // convert bitsets to bytes
+        std::vector<unsigned char> cipher_bytes;
+        cipher_bytes.reserve(cipher_bits.size());
+        for (const auto &b : cipher_bits) cipher_bytes.push_back(static_cast<unsigned char>(b.to_ulong()));
         std::string hex = bytes_to_hex(cipher_bytes);
         // Log the encrypted message we're sending (hex)
         std::cout << "Encrypted (hex) sent: " << hex << std::endl;
