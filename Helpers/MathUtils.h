@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <climits>
 
 class MathUtils {
 public:
@@ -11,6 +12,9 @@ public:
 
     // Pick a random element from a vector; returns -1 if empty
     int pickRandomFrom(const std::vector<int>& v) const;
+
+    // Pick a random element from a vector restricted to [minInclusive..maxInclusive]; returns -1 if none match
+    int pickRandomFrom(const std::vector<int>& v, int minInclusive, int maxInclusive) const;
 
     // Find a generator for modulus p
     int findGenerator(int p) const;

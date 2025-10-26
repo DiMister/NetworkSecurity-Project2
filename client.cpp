@@ -59,9 +59,13 @@ int main(int argc, char* argv[]) {
     uint32_t q_rsa = static_cast<uint32_t>(mathUtils.pickRandomFrom(primes));
     while (q_rsa == p_rsa) q_rsa = static_cast<uint32_t>(mathUtils.pickRandomFrom(primes));
 
+    printf("Client: generated RSA primes p=%u q=%u\n", p_rsa, q_rsa);
+
     unsigned long long n_tmp = static_cast<unsigned long long>(p_rsa) * static_cast<unsigned long long>(q_rsa);
     uint32_t n = static_cast<uint32_t>(n_tmp);
     uint32_t totient = (p_rsa - 1u) * (q_rsa - 1u);
+
+    printf("Client: computed RSA modulus n=%u totient=%u\n", n, totient);
 
     uint32_t e = mathUtils.findPublicExponent(totient);
     if (e == 0u) {
@@ -72,8 +76,10 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
+    printf("Client: selected public exponent e=%u\n", e);
 
     uint32_t d = mathUtils.extendedEuclidean(e, totient);
+    printf("Client: computed private exponent d=%u\n", d);
 
     // Send our public key to server: RSA_PUB <n> <e>\n
     std::string publine = "RSA_PUB " + std::to_string(n) + " " + std::to_string(e) + "\n";
@@ -96,6 +102,7 @@ int main(int argc, char* argv[]) {
         close(sock);
         return 1;
     }
+    printf("Client: received ENC_SHARE %u\n", ciph);
 
     // Decrypt with client's private exponent d: shared = c^d mod n
     unsigned int shared = FastModExp::powmod(ciph, d, n);

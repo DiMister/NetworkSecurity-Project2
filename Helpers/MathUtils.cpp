@@ -28,12 +28,20 @@ vector<int> MathUtils::loadPrimes(const string &path) const {
     return primes;
 }
 
-int MathUtils::pickRandomFrom(const vector<int>& v) const {
+int MathUtils::pickRandomFrom(const vector<int>& v, int minInclusive, int maxInclusive) const {
     if (v.empty()) return -1;
-    static random_device rd;
-    static mt19937 gen(rd());
-    uniform_int_distribution<size_t> dist(0, v.size() - 1);
-    return v[dist(gen)];
+    // Collect candidates within range
+    std::vector<int> candidates;
+    candidates.reserve(v.size());
+    for (int x : v) {
+        if (x >= minInclusive && x <= maxInclusive) candidates.push_back(x);
+    }
+    if (candidates.empty()) return -1;
+
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> dist(0, candidates.size() - 1);
+    return candidates[dist(gen)];
 }
 
 int MathUtils::findGenerator(int p) const {
@@ -135,4 +143,12 @@ uint32_t MathUtils::findPublicExponent(uint32_t totient_n) const {
 
     // If no exponent is found after checking the entire range, return 0 as an error code.
     return 0;
+}
+
+int MathUtils::pickRandomFrom(const vector<int>& v) const {
+    if (v.empty()) return -1;
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> dist(0, v.size() - 1);
+    return v[dist(gen)];
 }

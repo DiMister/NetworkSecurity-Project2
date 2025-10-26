@@ -94,20 +94,30 @@ int main(int argc, char* argv[]) {
     // Generate a small random shared secret using MathUtils (demo only)
     MathUtils mathUtils;
     std::vector<int> primes = mathUtils.loadPrimes("./primes.csv");
-    uint32_t shared = 0u;
-    int picked = mathUtils.pickRandomFrom(primes);
-    if (picked < 0) picked = 1;
-    // Ensure shared is in range [1, client_n-1]
+    unsigned int shared = 0u;
+    int picked = -1;
     if (client_n > 1u) {
-        shared = static_cast<uint32_t>(picked) % (client_n - 1u) + 1u;
+        picked = mathUtils.pickRandomFrom(primes, 1, static_cast<int>(client_n - 1u));
     } else {
-        shared = static_cast<uint32_t>(picked);
+        picked = mathUtils.pickRandomFrom(primes);
     }
-    std::cout << "Server: generated shared secret from primes (picked=" << picked << ") -> plain=" << shared << "\n";
+
+    if (picked != -1) {
+        shared = static_cast<unsigned int>(picked);
+        std::cout << "Server: generated shared secret from primes (picked=" << picked << ") -> plain=" << shared << "\n";
+    } else {
+        // No primes directly fit the range; pick any and reduce
+        int anypicked = mathUtils.pickRandomFrom(primes);
+        if (anypicked < 0) anypicked = 1;
+        if (client_n > 1u) shared = static_cast<unsigned int>(anypicked) % (client_n - 1u) + 1u;
+        else shared = static_cast<unsigned int>(anypicked);
+        std::cout << "Server: no primes within range, reduced picked=" << anypicked << " -> plain=" << shared << "\n";
+    }
     
     // Encrypt shared with client's RSA pub: c = shared^e mod n
     uint32_t m = shared % client_n;
     uint32_t ciph = FastModExp::powmod(m, client_e, client_n);
+    printf("Server: encrypted shared secret ENC_SHARE %u\n", ciph);
     std::string enc_line = "ENC_SHARE " + std::to_string(ciph) + "\n";
     if (!send_all(client_sock, enc_line)) {
         std::perror("send");
