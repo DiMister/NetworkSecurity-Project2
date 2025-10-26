@@ -76,12 +76,12 @@ int main(int argc, char* argv[]) {
     }
 
     unsigned long long client_n_tmp = 0ull;
-    unsigned int client_e = 0u;
+    uuint32_t client_e = 0u;
     {
         std::istringstream iss(line.substr(8));
         iss >> client_n_tmp >> client_e;
     }
-    unsigned int client_n = static_cast<unsigned int>(client_n_tmp);
+    uint32_t client_n = static_cast<uint32_t>(client_n_tmp);
     std::cout << "Server: received client RSA public n=" << client_n << " e=" << client_e << "\n";
 
     if (client_n == 0u) {
@@ -94,20 +94,20 @@ int main(int argc, char* argv[]) {
     // Generate a small random shared secret using MathUtils (demo only)
     MathUtils mathUtils;
     std::vector<int> primes = mathUtils.loadPrimes("./primes.csv");
-    unsigned int shared = 0u;
+    uint32_t shared = 0u;
     int picked = mathUtils.pickRandomFrom(primes);
     if (picked < 0) picked = 1;
     // Ensure shared is in range [1, client_n-1]
     if (client_n > 1u) {
-        shared = static_cast<unsigned int>(picked) % (client_n - 1u) + 1u;
+        shared = static_cast<uint32_t>(picked) % (client_n - 1u) + 1u;
     } else {
-        shared = static_cast<unsigned int>(picked);
+        shared = static_cast<uint32_t>(picked);
     }
     std::cout << "Server: generated shared secret from primes (picked=" << picked << ") -> plain=" << shared << "\n";
     
     // Encrypt shared with client's RSA pub: c = shared^e mod n
-    unsigned int m = shared % client_n;
-    unsigned int ciph = FastModExp::powmod(m, client_e, client_n);
+    uint32_t m = shared % client_n;
+    uint32_t ciph = FastModExp::powmod(m, client_e, client_n);
     std::string enc_line = "ENC_SHARE " + std::to_string(ciph) + "\n";
     if (!send_all(client_sock, enc_line)) {
         std::perror("send");
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Server: sent ENC_SHARE " << ciph << "\n";
 
-        // Derive a 10-bit SDES key from the shared secret (simple demo: s = shared % 1024)
+    // Derive a 10-bit SDES key from the shared secret 
     int s = static_cast<int>(shared);
     uint16_t key10 = static_cast<uint16_t>(s % 1024);
     std::bitset<10> sdes_key(key10);
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
         if (hex.size() % 2 != 0) return out;
         for (size_t i = 0; i < hex.size(); i += 2) {
             std::string byteStr = hex.substr(i, 2);
-            unsigned int byte;
+            uint32_t byte;
             std::stringstream ss;
             ss << std::hex << byteStr;
             ss >> byte;
