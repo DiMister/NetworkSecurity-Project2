@@ -3,9 +3,7 @@
 #include <string>
 #include <cctype>
 #include <random>
-#include <numeric>
 #include <set>
-#include <numeric>
 using namespace std;
 
 vector<int> MathUtils::loadPrimes(const string &path) const {
@@ -96,7 +94,7 @@ bool MathUtils::isGenerator(int g, int p) const {
  * @param totient_n The result of Euler's Totient function, phi(n).
  * @return A valid public exponent 'e', or 0 if no suitable exponent is found.
  */
-unsigned int findPublicExponent(unsigned int totient_n) {
+unsigned int MathUtils::findPublicExponent(unsigned int totient_n) const {
     if (totient_n <= 2) {
         return 0; // No valid 'e' can exist.
     }
@@ -118,14 +116,14 @@ unsigned int findPublicExponent(unsigned int totient_n) {
 
     // Part 1: Search from the random start up to totient_n.
     for (unsigned int e = start_candidate; e < totient_n; e += 2) {
-        if (std::gcd(e, totient_n) == 1u) {
+        if (findGCD(e, totient_n) == 1u) {
             return e; // Found a valid exponent.
         }
     }
 
     // Part 2: If not found, search from the beginning (3) up to our random start.
     for (unsigned int e = 3; e < start_candidate; e += 2) {
-        if (std::gcd(e, totient_n) == 1u) {
+        if (findGCD(e, totient_n) == 1u) {
             return e; // Found a valid exponent.
         }
     }

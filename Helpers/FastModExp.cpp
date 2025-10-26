@@ -1,30 +1,27 @@
 #include "FastModExp.h"
 #include <stdexcept>
 
-// Use wider intermediate when available; for "int" fallback uses safe algorithm
-int FastModExp::mul_mod(int a, int b, int mod) {
-    return (a*b) % mod;
+// Use wider intermediate when available; unsigned version
+unsigned int FastModExp::mul_mod(unsigned int a, unsigned int b, unsigned int mod) {
+    // Use 64-bit intermediate to reduce overflow risk
+    unsigned long long res = static_cast<unsigned long long>(a) * static_cast<unsigned long long>(b);
+    return static_cast<unsigned int>(res % mod);
 }
 
-int FastModExp::powmod(int base, int exp, int mod) {
+unsigned int FastModExp::powmod(unsigned int base, unsigned int exp, unsigned int mod) {
     if (mod == 0) throw std::invalid_argument("mod must be > 0");
-    if (exp < 0) throw std::invalid_argument("exp must be >= 0");
 
     base %= mod;
-    int result = 1;
+    unsigned int result = 1u;
 
     // Find the most-significant-bit mask for exp
-    int mask = 1;
-    int e = exp;
+    unsigned int mask = 1u;
+    unsigned int e = exp;
     while (e >>= 1) mask <<= 1;
 
-    // Process bits from MSB to LSB: for each bit do
-    //   result = result^2 mod
-    //   if bit == 1 -> result = result * base mod
+    // Process bits from MSB to LSB
     for (; mask; mask >>= 1) {
-        // square
         result = mul_mod(result, result, mod);
-        // if current MSB is 1, multiply by base
         if (exp & mask) {
             result = mul_mod(result, base, mod);
         }
