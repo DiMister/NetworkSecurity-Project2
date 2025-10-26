@@ -63,6 +63,7 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "set": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "numeric": "cpp"
     }
 }
