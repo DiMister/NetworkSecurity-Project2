@@ -14,7 +14,12 @@ public:
     // Find a generator for modulus p
     int findGenerator(int p) const;
 
+
+    uint32_t extendedEuclidean(uint32_t publicKey, uint32_t totientN) const;
+
 private:
+    uint32_t findGCD(uint32_t a, uint32_t b) const;
+
     // Check if g is a valid generator for modulus p
     bool isGenerator(int g, int p) const;
 };

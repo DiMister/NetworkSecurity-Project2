@@ -45,6 +45,29 @@ int MathUtils::findGenerator(int p) const {
     return -1; // No generator found
 }
 
+// credit to https://www.geeksforgeeks.org/dsa/euclidean-algorithms-basic-and-extended/ for code
+uint32_t MathUtils::findGCD(uint32_t a, uint32_t b) const {
+    if (a == 0) return b;
+    return findGCD(b % a, a);
+}
+
+uint32_t MathUtils::extendedEuclidean(uint32_t publicKey, uint32_t totientN) const {
+    int32_t t = 0, newt = 1;
+    int32_t r = totientN, newr = publicKey;
+
+    if(findGCD(publicKey, totientN) != 1) throw std::invalid_argument("publicKey and totientN are not coprime");
+
+    while (newr != 0) {
+        uint32_t quotient = r / newr;
+        tie(t, newt) = make_pair(newt, t - quotient * newt);
+        tie(r, newr) = make_pair(newr, r - quotient * newr);
+    }
+
+    if (r > 1) throw std::invalid_argument("Not invertible"); // Not invertible
+    if (t < 0) t += totientN;
+    return static_cast<uint32_t>(t);
+}
+
 bool MathUtils::isGenerator(int g, int p) const {
     set<int> seen;
     int current = 1;
