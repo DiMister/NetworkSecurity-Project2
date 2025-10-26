@@ -12,6 +12,9 @@
 #include "./Helpers/net_utils.h"
 #include "./Helpers/FastModExp.h"
 #include "./Helpers/MathUtils.h"
+#include "./Helpers/SDESModes.h"
+#include <thread>
+#include <sstream>
 #include <iomanip>
 
 int main(int argc, char* argv[]) {

@@ -9,8 +9,7 @@
 #include <unistd.h>
 #include <random>
 #include "./Helpers/net_utils.h"
-#include "./Helpers/MathUtils.h"
-#include "./Helpers/FastModExp.h"
+#include "./Helpers/SDES.h"
 #include <sstream>
 #include <iomanip>
 #include <cstdint>
@@ -78,26 +77,64 @@ int main(int argc, char* argv[]) {
     std::string publine = "RSA_PUB " + std::to_string(n) + " " + std::to_string(e) + "\n";
     if (!send_all(sock, publine)) { perror("send"); close(sock); return 1; }
 
-    // Receive encrypted shared secret from server: "ENC_SHARE <c>\n"
-    std::string enc_line = recv_line(sock);
-    if (enc_line.rfind("ENC_SHARE ", 0) != 0) {
-        std::cerr << "Expected ENC_SHARE from server, got '" << enc_line << "'\n";
-        close(sock);
-        return 1;
-    }
-    unsigned long long c_tmp = 0ull;
-    {
-        std::istringstream iss(enc_line.substr(10));
-        iss >> c_tmp;
-    }
-    unsigned int ciph = static_cast<unsigned int>(c_tmp);
+    std::string ok = recv_line(sock);
+    if (ok == "OK") std::cout << "Client: server acknowledged shared secret\n";
 
-    // Decrypt with client's private exponent d: shared = c^d mod n
-    unsigned int shared = FastModExp::powmod(ciph, d, n);
-    std::cout << "Client: decrypted shared secret = " << shared << std::endl;
+    // Derive 10-bit SDES key from shared secret (simple: take s mod 1024)
+    int s = s_client;
+    uint16_t key10 = static_cast<uint16_t>(s % 1024);
+    std::bitset<10> sdes_key(key10);
+    SDES sdes(sdes_key);
 
-    // Tell server we're done and close
-    send_all(sock, std::string("BYE\n"));
+    // Helper lambdas for hex encoding/decoding
+    auto bytes_to_hex = [](const std::vector<unsigned char>& bytes) {
+        std::ostringstream oss;
+        for (unsigned char b : bytes) {
+            oss << std::hex << std::setw(2) << std::setfill('0') << (int)b;
+        }
+        return oss.str();
+    };
+
+    auto hex_to_bytes = [](const std::string &hex) {
+        std::vector<unsigned char> out;
+        if (hex.size() % 2 != 0) return out;
+        for (size_t i = 0; i < hex.size(); i += 2) {
+            std::string byteStr = hex.substr(i, 2);
+            unsigned int byte;
+            std::stringstream ss;
+            ss << std::hex << byteStr;
+            ss >> byte;
+            out.push_back(static_cast<unsigned char>(byte));
+        }
+        return out;
+    };
+
+    // Sender loop: read stdin lines, encrypt and send as MSG <hex>\n
+    std::string input;
+    while (std::getline(std::cin, input)) {
+        if (input == "/quit") {
+            send_all(sock, std::string("BYE\n"));
+            break;
+        }
+        std::vector<unsigned char> cipher_bytes;
+        cipher_bytes.reserve(input.size());
+        // Log the keyboard input we're about to send
+        std::cout << "Keyboard input: '" << input << "'\n";
+
+        for (char c : input) {
+            std::bitset<8> pt = sdes.charToBinary(c);
+            std::bitset<8> ct = sdes.encrypt(pt);
+            cipher_bytes.push_back(static_cast<unsigned char>(ct.to_ulong()));
+        }
+        std::string hex = bytes_to_hex(cipher_bytes);
+        // Log the encrypted message we're sending (hex)
+        std::cout << "Encrypted (hex) sent: " << hex << std::endl;
+
+        std::string out = std::string("MSG ") + hex + "\n";
+        if (!send_all(sock, out)) break;
+    }
+
+    // Close and exit
     close(sock);
     return 0;
 }
