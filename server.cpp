@@ -117,6 +117,27 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Server: sent ENC_SHARE " << ciph << "\n";
 
+        // Derive a 10-bit SDES key from the shared secret (simple demo: s = shared % 1024)
+    int s = static_cast<int>(shared);
+    uint16_t key10 = static_cast<uint16_t>(s % 1024);
+    std::bitset<10> sdes_key(key10);
+    SDESModes sdes(sdes_key);
+
+    // Helper: hex -> bytes (same format used by client)
+    auto hex_to_bytes = [](const std::string &hex) {
+        std::vector<unsigned char> out;
+        if (hex.size() % 2 != 0) return out;
+        for (size_t i = 0; i < hex.size(); i += 2) {
+            std::string byteStr = hex.substr(i, 2);
+            unsigned int byte;
+            std::stringstream ss;
+            ss << std::hex << byteStr;
+            ss >> byte;
+            out.push_back(static_cast<unsigned char>(byte));
+        }
+        return out;
+    };
+
     // Receive IV
     line = recv_line(client_sock);
     if (line.rfind("IV ", 0) != 0) {
@@ -139,10 +160,13 @@ int main(int argc, char* argv[]) {
 
             auto bytes = hex_to_bytes(hex);
 
-            auto plain_bytes =sdes.decrypt(bytes, EncryptionMode::CBC, cbc_iv);
+            // Convert bytes -> vector<bitset<8>> expected by SDESModes
+            std::vector<std::bitset<8>> cipher_bits;
+            for (unsigned char b : bytes) cipher_bits.emplace_back(static_cast<unsigned long>(b));
+
+            auto plain_bits = sdes.decrypt(cipher_bits, EncryptionMode::CBC, cbc_iv);
             std::string plain;
-            for (unsigned char b : plain_bytes) {
-                std::bitset<8> pt(b);
+            for (const auto &pt : plain_bits) {
                 plain.push_back(static_cast<char>(pt.to_ulong()));
             }
             // Log the decrypted keyboard input
