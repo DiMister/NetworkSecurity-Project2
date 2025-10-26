@@ -94,9 +94,9 @@ int main(int argc, char* argv[]) {
     }
     // Parse the numeric ciphertext after the prefix "ENC_SHARE ".
     // Use std::stoul to convert directly from substring to unsigned long, then cast.
-    unsigned int ciph = 0u;
+    uint32_t ciph = 0u;
     try {
-        ciph = static_cast<unsigned int>(std::stoul(enc_line.substr(10)));
+        ciph = static_cast<uint32_t>(std::stoul(enc_line.substr(10)));
     } catch (const std::exception &e) {
         std::cerr << "Failed to parse ENC_SHARE value: " << e.what() << "\n";
         close(sock);
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
     printf("Client: received ENC_SHARE %u\n", ciph);
 
     // Decrypt with client's private exponent d: shared = c^d mod n
-    unsigned int shared = FastModExp::powmod(ciph, d, n);
+    uint32_t shared = FastModExp::powmod(ciph, d, n);
     std::cout << "Client: decrypted shared secret = " << shared << std::endl;
 
     // Generate a random 8-bit IV for CBC mode

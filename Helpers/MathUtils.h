@@ -23,12 +23,11 @@ public:
     // Returns 0 on failure.
     uint32_t findPublicExponent(uint32_t totient_n) const;
 
+    uint32_t findGCD(uint32_t a, uint32_t b) const;
 
     uint32_t extendedEuclidean(uint32_t publicKey, uint32_t totientN) const;
 
 private:
-    uint32_t findGCD(uint32_t a, uint32_t b) const;
-
     // Check if g is a valid generator for modulus p
     bool isGenerator(int g, int p) const;
 };
