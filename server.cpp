@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     }
 
     unsigned long long client_n_tmp = 0ull;
-    uuint32_t client_e = 0u;
+    uint32_t client_e = 0u;
     {
         std::istringstream iss(line.substr(8));
         iss >> client_n_tmp >> client_e;
