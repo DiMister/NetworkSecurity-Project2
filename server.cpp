@@ -117,16 +117,40 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Server: sent ENC_SHARE " << ciph << "\n";
 
+    // Receive IV
+    line = recv_line(client_sock);
+    if (line.rfind("IV ", 0) != 0) {
+        std::cout << "Server: expected IV, got '" << line << "'\n";
+        close(client_sock);
+        close(listen_sock);
+        return 1;
+    }
+    std::bitset<8> cbc_iv(static_cast<uint8_t>(std::stoi(line.substr(3))));
+    std::cout << "Received 8-bit IV for CBC: " << cbc_iv << "\n";
+
     // Wait for BYE or EOF, then cleanup
     while (true) {
-        std::string in = recv_line(client_sock);
-        if (in.empty()) break;
-        if (in == "BYE") {
-            std::cout << "Client closed connection\n";
+        std::string line = recv_line(client_sock);
+        if (line.empty()) break;
+        if (line.rfind("MSG ", 0) == 0) {
+            std::string hex = line.substr(4);
+            // Log the encrypted message received (hex)
+            std::cout << "Encrypted (hex) received: " << hex << std::endl;
+
+            auto bytes = hex_to_bytes(hex);
+
+            auto plain_bytes =sdes.decrypt(bytes, EncryptionMode::CBC, cbc_iv);
+            std::string plain;
+            for (unsigned char b : plain_bytes) {
+                std::bitset<8> pt(b);
+                plain.push_back(static_cast<char>(pt.to_ulong()));
+            }
+            // Log the decrypted keyboard input
+            std::cout << "Decrypted keyboard input: '" << plain << "'" << std::endl;
+        } else if (line == "BYE") {
+            std::cout << "Client closed connection" << std::endl;
             break;
         }
-        // Otherwise ignore or log
-        std::cout << "Server received after handshake: '" << in << "'\n";
     }
 
     close(client_sock);

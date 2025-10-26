@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <random>
 #include "./Helpers/net_utils.h"
-#include "./Helpers/SDES.h"
+#include "./Helpers/SDESModes.h"
 #include <sstream>
 #include <iomanip>
 #include <cstdint>
@@ -80,11 +80,25 @@ int main(int argc, char* argv[]) {
     std::string ok = recv_line(sock);
     if (ok == "OK") std::cout << "Client: server acknowledged shared secret\n";
 
+    // Generate a random 8-bit IV for CBC mode
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(0, 255);
+    uint8_t iv = static_cast<uint8_t>(dist(gen));
+    std::bitset<8> cbc_iv(iv);
+    std::cout << "Generated 8-bit IV for CBC: " << cbc_iv << "\n";
+
+    if (!send_all(sock, std::string("IV ") + std::to_string(cbc_iv.to_ulong()) + "\n")) {
+        perror("send");
+        close(sock);
+        return 1;
+    }
+
     // Derive 10-bit SDES key from shared secret (simple: take s mod 1024)
     int s = s_client;
     uint16_t key10 = static_cast<uint16_t>(s % 1024);
     std::bitset<10> sdes_key(key10);
-    SDES sdes(sdes_key);
+    SDESModes sdes(sdes_key);
 
     // Helper lambdas for hex encoding/decoding
     auto bytes_to_hex = [](const std::vector<unsigned char>& bytes) {
@@ -116,16 +130,15 @@ int main(int argc, char* argv[]) {
             send_all(sock, std::string("BYE\n"));
             break;
         }
-        std::vector<unsigned char> cipher_bytes;
-        cipher_bytes.reserve(input.size());
         // Log the keyboard input we're about to send
         std::cout << "Keyboard input: '" << input << "'\n";
 
+        std::vector<std::bitset<8>> plaintext_bits;
         for (char c : input) {
             std::bitset<8> pt = sdes.charToBinary(c);
-            std::bitset<8> ct = sdes.encrypt(pt);
-            cipher_bytes.push_back(static_cast<unsigned char>(ct.to_ulong()));
+            plaintext_bits.push_back(static_cast<unsigned char>(pt.to_ulong()));
         }
+        auto cipher_bytes = sdes.encrypt(plaintext_bits, EncryptionMode::CBC, cbc_iv);
         std::string hex = bytes_to_hex(cipher_bytes);
         // Log the encrypted message we're sending (hex)
         std::cout << "Encrypted (hex) sent: " << hex << std::endl;
