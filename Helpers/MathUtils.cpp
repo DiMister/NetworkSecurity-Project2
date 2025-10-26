@@ -3,7 +3,9 @@
 #include <string>
 #include <cctype>
 #include <random>
+#include <numeric>
 #include <set>
+#include <numeric>
 using namespace std;
 
 vector<int> MathUtils::loadPrimes(const string &path) const {
@@ -77,4 +79,57 @@ bool MathUtils::isGenerator(int g, int p) const {
         seen.insert(current);
     }
     return seen.size() == p - 1;
+}
+
+/**
+ * @brief Finds a suitable public exponent 'e' for RSA, starting from a random odd number.
+ * 
+ * The public exponent 'e' must satisfy two conditions:
+ * 1. 1 < e < totient_n
+ * 2. 'e' must be coprime with totient_n (i.e., gcd(e, totient_n) == 1)
+ * 
+ * This function finds a suitable public exponent 'e' for RSA as an unsigned int.
+ * The public exponent 'e' must satisfy:
+ * 1. 1 < e < totient_n
+ * 2. gcd(e, totient_n) == 1
+ *
+ * @param totient_n The result of Euler's Totient function, phi(n).
+ * @return A valid public exponent 'e', or 0 if no suitable exponent is found.
+ */
+unsigned int findPublicExponent(unsigned int totient_n) {
+    if (totient_n <= 2) {
+        return 0; // No valid 'e' can exist.
+    }
+
+    // 1. Set up a high-quality random number generator.
+    std::random_device rd;           // Obtains a non-deterministic seed from the OS.
+    std::mt19937 generator(rd());    // Standard Mersenne Twister engine seeded with rd().
+
+    // The distribution for 'e' is between 3 and totient_n - 1.
+    std::uniform_int_distribution<unsigned int> distribution(3, totient_n - 1);
+
+    // 2. Generate a random starting point.
+    unsigned int start_candidate = distribution(generator);
+
+    // Ensure the starting candidate is odd. If it's even, add 1.
+    if ((start_candidate % 2) == 0) {
+        start_candidate++;
+    }
+
+    // Part 1: Search from the random start up to totient_n.
+    for (unsigned int e = start_candidate; e < totient_n; e += 2) {
+        if (std::gcd(e, totient_n) == 1u) {
+            return e; // Found a valid exponent.
+        }
+    }
+
+    // Part 2: If not found, search from the beginning (3) up to our random start.
+    for (unsigned int e = 3; e < start_candidate; e += 2) {
+        if (std::gcd(e, totient_n) == 1u) {
+            return e; // Found a valid exponent.
+        }
+    }
+
+    // If no exponent is found after checking the entire range, return 0 as an error code.
+    return 0;
 }
