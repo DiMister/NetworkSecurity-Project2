@@ -17,7 +17,7 @@ public:
 
     // Find a public exponent 'e' for RSA (utility declaration).
     // Returns 0 on failure.
-    unsigned int findPublicExponent(unsigned int totient_n) const;
+    uint32_t findPublicExponent(uint32_t totient_n) const;
 
 
     uint32_t extendedEuclidean(uint32_t publicKey, uint32_t totientN) const;

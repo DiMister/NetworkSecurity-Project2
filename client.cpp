@@ -53,15 +53,15 @@ int main(int argc, char* argv[]) {
     }
 
     // Generate RSA keypair for client (small primes from CSV)
-    unsigned int p_rsa = static_cast<unsigned int>(mathUtils.pickRandomFrom(primes));
-    unsigned int q_rsa = static_cast<unsigned int>(mathUtils.pickRandomFrom(primes));
-    while (q_rsa == p_rsa) q_rsa = static_cast<unsigned int>(mathUtils.pickRandomFrom(primes));
+    uint32_t p_rsa = static_cast<uint32_t>(mathUtils.pickRandomFrom(primes));
+    uint32_t q_rsa = static_cast<uint32_t>(mathUtils.pickRandomFrom(primes));
+    while (q_rsa == p_rsa) q_rsa = static_cast<uint32_t>(mathUtils.pickRandomFrom(primes));
 
     unsigned long long n_tmp = static_cast<unsigned long long>(p_rsa) * static_cast<unsigned long long>(q_rsa);
-    unsigned int n = static_cast<unsigned int>(n_tmp);
-    unsigned int totient = (p_rsa - 1u) * (q_rsa - 1u);
+    uint32_t n = static_cast<uint32_t>(n_tmp);
+    uint32_t totient = (p_rsa - 1u) * (q_rsa - 1u);
 
-    unsigned int e = mathUtils.findPublicExponent(totient);
+    uint32_t e = mathUtils.findPublicExponent(totient);
     if (e == 0u) {
         e = 65537u;
         if (mathUtils.findGCD(e, totient) != 1u) {
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    unsigned int d = mathUtils.extendedEuclidean(e, totient);
+    uint32_t d = mathUtils.extendedEuclidean(e, totient);
 
     // Send our public key to server: RSA_PUB <n> <e>\n
     std::string publine = "RSA_PUB " + std::to_string(n) + " " + std::to_string(e) + "\n";
@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
         if (hex.size() % 2 != 0) return out;
         for (size_t i = 0; i < hex.size(); i += 2) {
             std::string byteStr = hex.substr(i, 2);
-            unsigned int byte;
+            uint32_t byte;
             std::stringstream ss;
             ss << std::hex << byteStr;
             ss >> byte;

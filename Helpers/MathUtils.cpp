@@ -86,7 +86,8 @@ bool MathUtils::isGenerator(int g, int p) const {
  * 1. 1 < e < totient_n
  * 2. 'e' must be coprime with totient_n (i.e., gcd(e, totient_n) == 1)
  * 
- * This function finds a suitable public exponent 'e' for RSA as an unsigned int.
+ * This function finds a suitable public exponent 'e' for RSA as an uint32_t
+ * .
  * The public exponent 'e' must satisfy:
  * 1. 1 < e < totient_n
  * 2. gcd(e, totient_n) == 1
@@ -94,7 +95,7 @@ bool MathUtils::isGenerator(int g, int p) const {
  * @param totient_n The result of Euler's Totient function, phi(n).
  * @return A valid public exponent 'e', or 0 if no suitable exponent is found.
  */
-unsigned int MathUtils::findPublicExponent(unsigned int totient_n) const {
+uint32_t MathUtils::findPublicExponent(uint32_t totient_n) const {
     if (totient_n <= 2) {
         return 0; // No valid 'e' can exist.
     }
@@ -104,10 +105,12 @@ unsigned int MathUtils::findPublicExponent(unsigned int totient_n) const {
     std::mt19937 generator(rd());    // Standard Mersenne Twister engine seeded with rd().
 
     // The distribution for 'e' is between 3 and totient_n - 1.
-    std::uniform_int_distribution<unsigned int> distribution(3, totient_n - 1);
+    std::uniform_int_distribution<uint32_t
+    > distribution(3, totient_n - 1);
 
     // 2. Generate a random starting point.
-    unsigned int start_candidate = distribution(generator);
+    uint32_t
+     start_candidate = distribution(generator);
 
     // Ensure the starting candidate is odd. If it's even, add 1.
     if ((start_candidate % 2) == 0) {
@@ -115,14 +118,16 @@ unsigned int MathUtils::findPublicExponent(unsigned int totient_n) const {
     }
 
     // Part 1: Search from the random start up to totient_n.
-    for (unsigned int e = start_candidate; e < totient_n; e += 2) {
+    for (uint32_t
+         e = start_candidate; e < totient_n; e += 2) {
         if (findGCD(e, totient_n) == 1u) {
             return e; // Found a valid exponent.
         }
     }
 
     // Part 2: If not found, search from the beginning (3) up to our random start.
-    for (unsigned int e = 3; e < start_candidate; e += 2) {
+    for (uint32_t
+         e = 3; e < start_candidate; e += 2) {
         if (findGCD(e, totient_n) == 1u) {
             return e; // Found a valid exponent.
         }
