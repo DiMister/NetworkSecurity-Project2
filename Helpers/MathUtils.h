@@ -27,6 +27,15 @@ public:
 
     uint32_t extendedEuclidean(uint32_t publicKey, uint32_t totientN) const;
 
+    // RSA sign/verify helpers (lab/demo only)
+    // Sign a 32-bit hash using RSA private exponent d and modulus n.
+    // Returns numeric signature (0 if n==0).
+    uint32_t rsa_sign_uint32(uint32_t hash32, uint32_t d, uint32_t n) const;
+
+    // Verify a 32-bit hash against a numeric signature using RSA public exponent e and modulus n.
+    // Returns true if sig^e mod n == (hash32 % n).
+    bool rsa_verify_uint32(uint32_t hash32, uint32_t sig, uint32_t e, uint32_t n) const;
+
 private:
     // Check if g is a valid generator for modulus p
     bool isGenerator(int g, int p) const;

@@ -12,6 +12,8 @@
 #include "./Helpers/SDESModes.h"
 #include "./Helpers/MathUtils.h"
 #include "./Helpers/FastModExp.h"
+#include "./Helpers/DiffeHellman.h"
+#include <bitset>
 #include <sstream>
 #include <iomanip>
 #include <cstdint>
@@ -85,28 +87,100 @@ int main(int argc, char* argv[]) {
     std::string publine = "RSA_PUB " + std::to_string(n) + " " + std::to_string(e) + "\n";
     if (!send_all(sock, publine)) { perror("send"); close(sock); return 1; }
 
-    // Receive encrypted shared secret from server: "ENC_SHARE <c>\n"
-    std::string enc_line = recv_line(sock);
-    if (enc_line.rfind("ENC_SHARE ", 0) != 0) {
-        std::cerr << "Expected ENC_SHARE from server, got '" << enc_line << "'\n";
+    // Receive server's RSA pub: "RSA_PUB <n> <e>\n"
+    std::string srv_line = recv_line(sock);
+    if (srv_line.rfind("RSA_PUB ", 0) != 0) {
+        std::cerr << "Expected RSA_PUB from server, got '" << srv_line << "'\n";
         close(sock);
         return 1;
     }
-    // Parse the numeric ciphertext after the prefix "ENC_SHARE ".
-    // Use std::stoul to convert directly from substring to unsigned long, then cast.
-    uint32_t ciph = 0u;
-    try {
-        ciph = static_cast<uint32_t>(std::stoul(enc_line.substr(10)));
-    } catch (const std::exception &e) {
-        std::cerr << "Failed to parse ENC_SHARE value: " << e.what() << "\n";
-        close(sock);
-        return 1;
+    unsigned long long server_n_tmp = 0ull;
+    uint32_t server_e = 0u;
+    {
+        std::istringstream iss(srv_line.substr(8));
+        iss >> server_n_tmp >> server_e;
     }
-    printf("Client: received ENC_SHARE %u\n", ciph);
+    uint32_t server_n = static_cast<uint32_t>(server_n_tmp);
+    std::cout << "Client: received server RSA pub n=" << server_n << " e=" << server_e << std::endl;
 
-    // Decrypt with client's private exponent d: shared = c^d mod n
-    uint32_t shared = FastModExp::powmod(ciph, d, n);
-    std::cout << "Client: decrypted shared secret = " << shared << std::endl;
+    // Now send signed Diffie-Hellman params: choose prime p and generator g and our public A
+    int dh_p = 0, dh_g = -1;
+    for (int attempt = 0; attempt < 10 && dh_g == -1; ++attempt) {
+        int cand = mathUtils.pickRandomFrom(primes);
+        if (cand <= 3) continue;
+        int gen = mathUtils.findGenerator(cand);
+        if (gen > 1) {
+            dh_p = cand;
+            dh_g = gen;
+            std::cout << "Client: selected DH parameters p=" << dh_p << " g=" << dh_g << " (candidate attempt=" << attempt << ")\n";
+            break;
+        }
+    }
+    if (dh_g == -1) {
+        std::cerr << "Client: failed to find DH prime/generator\n";
+        close(sock);
+        return 1;
+    }
+
+    // choose client's DH private
+    std::random_device rd2;
+    std::mt19937 gen2(rd2());
+    std::uniform_int_distribution<int> priv_dist(2, dh_p - 2);
+    int client_priv = priv_dist(gen2);
+    std::cout << "Client: chosen DH private key (client_priv)=" << client_priv << "\n";
+    DiffeHellman dh(dh_p, dh_g);
+    int A = dh.calculatePublicKey(client_priv);
+    std::cout << "Client: computed DH public A=" << A << "\n";
+
+    // hash p,g,A using S-DES CBC hash (per CBCHash.cpp) and sign with client's RSA private
+    auto cbc_hash = [&](uint32_t p, uint32_t g, uint32_t a, uint32_t b = 0u, bool use_b = false) {
+        std::bitset<10> hash_key(std::string("1000000000"));
+        SDESModes hashSdes(hash_key);
+        std::bitset<8> zero_iv(std::string("00000000"));
+        std::string data = std::to_string(p) + "," + std::to_string(g) + "," + std::to_string(a);
+        if (use_b) data += "," + std::to_string(b);
+        std::vector<std::bitset<8>> inputBits;
+        for (char c : data) inputBits.emplace_back(static_cast<unsigned long>(static_cast<unsigned char>(c)));
+        if (inputBits.empty()) inputBits.emplace_back(static_cast<unsigned long>(0));
+        auto hashed = hashSdes.encrypt(inputBits, EncryptionMode::CBC, zero_iv);
+        return static_cast<uint32_t>(hashed.back().to_ulong());
+    };
+
+    uint32_t hash1 = cbc_hash(static_cast<uint32_t>(dh_p), static_cast<uint32_t>(dh_g), static_cast<uint32_t>(A));
+    std::cout << "Client: CBC hash for (p,g,A) = " << hash1 << "\n";
+    uint32_t sigA = mathUtils.rsa_sign_uint32(hash1, d, n);
+    std::cout << "Client: signed hash sigA=" << sigA << "\n";
+
+    std::string dhinit = "DH_INIT " + std::to_string(dh_p) + " " + std::to_string(dh_g) + " " + std::to_string(A) + " " + std::to_string(sigA) + "\n";
+    if (!send_all(sock, dhinit)) { perror("send"); close(sock); return 1; }
+    std::cout << "Client: sent DH_INIT p=" << dh_p << " g=" << dh_g << " A=" << A << " sig=" << sigA << std::endl;
+
+    // receive DH_REPLY <B> <sigB>\n
+    std::string reply = recv_line(sock);
+    if (reply.rfind("DH_REPLY ", 0) != 0) {
+        std::cerr << "Client: expected DH_REPLY, got '" << reply << "'\n";
+        close(sock);
+        return 1;
+    }
+    uint32_t B = 0u, sigB = 0u;
+    {
+        std::istringstream iss(reply.substr(9));
+        iss >> B >> sigB;
+    }
+    std::cout << "Client: received DH_REPLY B=" << B << " sigB=" << sigB << "\n";
+    // verify server signature over (p,g,A,B) using S-DES CBC hash
+    uint32_t hash2 = cbc_hash(static_cast<uint32_t>(dh_p), static_cast<uint32_t>(dh_g), static_cast<uint32_t>(A), B, true);
+    std::cout << "Client: CBC hash for (p,g,A,B) = " << hash2 << "\n";
+    if (!mathUtils.rsa_verify_uint32(hash2, sigB, server_e, server_n)) {
+        std::cerr << "Client: server DH_REPLY signature verification failed\n";
+        close(sock);
+        return 1;
+    }
+    std::cout << "Client: verified DH_REPLY signature\n";
+
+    // compute shared secret
+    uint32_t shared = static_cast<uint32_t>(dh.calculateSharedSecret(static_cast<int>(B), client_priv));
+    std::cout << "Client: computed DH shared secret = " << shared << std::endl;
 
     // Generate a random 8-bit IV for CBC mode
     std::random_device rd;
@@ -126,6 +200,7 @@ int main(int argc, char* argv[]) {
     int s = static_cast<int>(shared);
     uint16_t key10 = static_cast<uint16_t>(s % 1024);
     std::bitset<10> sdes_key(key10);
+    std::cout << "Client: derived 10-bit S-DES key = " << sdes_key << " (" << sdes_key.to_ulong() << ")\n";
     SDESModes sdes(sdes_key);
 
     // Helper lambdas for hex encoding/decoding

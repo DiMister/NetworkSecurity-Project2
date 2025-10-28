@@ -4,6 +4,7 @@
 #include <cctype>
 #include <random>
 #include <set>
+#include "FastModExp.h"
 using namespace std;
 
 vector<int> MathUtils::loadPrimes(const string &path) const {
@@ -151,4 +152,17 @@ int MathUtils::pickRandomFrom(const vector<int>& v) const {
     static thread_local std::mt19937 gen(rd());
     std::uniform_int_distribution<size_t> dist(0, v.size() - 1);
     return v[dist(gen)];
+}
+
+// -------------------- RSA sign/verify helpers --------------------
+uint32_t MathUtils::rsa_sign_uint32(uint32_t hash32, uint32_t d, uint32_t n) const {
+    if (n == 0) return 0;
+    uint32_t m = static_cast<uint32_t>(hash32 % n);
+    return FastModExp::powmod(m, d, n);
+}
+
+bool MathUtils::rsa_verify_uint32(uint32_t hash32, uint32_t sig, uint32_t e, uint32_t n) const {
+    if (n == 0) return false;
+    uint32_t recovered = FastModExp::powmod(sig, e, n);
+    return recovered == static_cast<uint32_t>(hash32 % n);
 }
