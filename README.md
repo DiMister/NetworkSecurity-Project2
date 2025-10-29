@@ -1,6 +1,5 @@
 # NetworkSecurity-Project2
-
-This project implements a RSA key exchange demonstration with client-server communication.
+This project implements a Diffie-Hellman key exchange and RSA signtures demonstration with client-server communication and S-DES encryption.
 ### Compilation wsl
 ```bash
 # Compile server
@@ -25,7 +24,10 @@ clang++ -std=c++17 -o cbchash CBCHash.cpp Helpers/SDESModes.cpp Helpers/SDES.cpp
 ```
 
 
-### Running the RSA Demo
+### Running the Diffie-Hellman Demo
+
+**Note**: Ensure `primes.csv` is in the project root directory before running.
+
 **Terminal 1 - Start the server:**
 ```bash
 ./server [port]
