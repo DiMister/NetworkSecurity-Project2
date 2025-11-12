@@ -250,6 +250,15 @@ int main(int argc, char* argv[]) {
         // Log the encrypted message we're sending (hex)
         std::cout << "Encrypted (hex) sent: " << hex << std::endl;
 
+        // Update session CBC IV to last ciphertext byte so consecutive messages chain
+        if (!cipher_bytes.empty()) {
+            uint8_t last_cipher_byte = cipher_bytes.back();
+            cbc_iv = std::bitset<8>(last_cipher_byte);
+            std::cout << "Client: updated session CBC IV to " << cbc_iv << " (from last ciphertext byte " << (int)last_cipher_byte << ")\n";
+        } else {
+            std::cout << "Client: cipher_bytes empty, not updating session IV\n";
+        }
+
         std::string out = std::string("MSG ") + hex + "\n";
         if (!send_all(sock, out)) break;
     }

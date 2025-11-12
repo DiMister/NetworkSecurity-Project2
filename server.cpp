@@ -266,6 +266,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::bitset<8>> cipher_bits;
             for (unsigned char b : bytes) cipher_bits.emplace_back(static_cast<unsigned long>(b));
 
+            // Decrypt using current session IV
             auto plain_bits = sdes.decrypt(cipher_bits, EncryptionMode::CBC, cbc_iv);
             std::string plain;
             for (const auto &pt : plain_bits) {
@@ -273,6 +274,15 @@ int main(int argc, char* argv[]) {
             }
             // Log the decrypted keyboard input
             std::cout << "Decrypted keyboard input: '" << plain << "'" << std::endl;
+
+            // Update session IV to the last ciphertext byte so incoming messages chain
+            if (!bytes.empty()) {
+                uint8_t last_cipher_byte = bytes.back();
+                cbc_iv = std::bitset<8>(last_cipher_byte);
+                std::cout << "Server: updated session CBC IV to " << cbc_iv << " (from last ciphertext byte " << (int)last_cipher_byte << ")\n";
+            } else {
+                std::cout << "Server: received empty ciphertext, not updating session IV\n";
+            }
         } else if (line == "BYE") {
             std::cout << "Client closed connection" << std::endl;
             break;
